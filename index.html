@@ -3,69 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>트램펄린 카운터</title>
+    <title>트램펄린 파워 카운터</title>
     <style>
-        /* 워치 화면 최적화 스타일 */
         body {
             margin: 0;
             padding: 0;
-            background-color: #000; /* 배터리 절약을 위한 블랙 */
+            background-color: #000;
             color: #fff;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: 'Inter', sans-serif;
+            font-family: -apple-system, sans-serif;
             overflow: hidden;
             touch-action: manipulation;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.2s;
         }
 
-        /* 현재 카운트 숫자 */
+        /* 메인 카운트 숫자 */
         #count {
-            font-size: 100px;
-            font-weight: 800;
-            color: #00ffcc; /* 형광 민트색 */
-            line-height: 1;
-            transition: transform 0.1s ease;
+            font-size: 120px;
+            font-weight: 900;
+            color: #00FF41; /* 매트릭스 그린 */
+            text-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            margin: 0;
+            transition: transform 0.05s;
         }
 
-        /* 하단 안내 문구 */
+        /* 상태 메시지 */
         #status {
-            font-size: 16px;
-            color: #888;
-            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #aaa;
+            margin-top: -10px;
         }
 
         /* 목표 달성 시 연출 */
-        .finished #count {
-            color: #ffcc00;
-            animation: bounce 0.5s infinite;
+        .finished {
+            background-color: #ff0000 !important;
         }
-        
-        @keyframes bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+        .finished #count {
+            color: #ffffff;
+            text-shadow: 0 0 30px #000;
+            animation: shake 0.1s infinite;
         }
 
+        @keyframes shake {
+            0% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            100% { transform: translate(2px, -2px); }
+        }
+
+        /* 리셋 버튼 */
         #reset-btn {
             position: absolute;
-            bottom: 20px;
-            background: none;
-            border: 1px solid #444;
+            bottom: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #333;
             color: #666;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            z-index: 10;
         }
     </style>
 </head>
 <body onclick="handleTap()">
     <div id="count">0</div>
-    <div id="status">터치해서 시작!</div>
-    <button id="reset-btn" onclick="resetCount(event)">리셋</button>
+    <div id="status">READY?</div>
+    <button id="reset-btn" onclick="resetCount(event)">RESET</button>
 
     <script>
         let count = 0;
@@ -73,52 +82,74 @@
         const countEl = document.getElementById('count');
         const statusEl = document.getElementById('status');
         
-        // 오디오 설정 (비프음)
+        // 오디오 컨텍스트 설정
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function playBeep() {
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
+        // 강렬한 삐이익! 소리 함수
+        function playAggressiveBeep() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
 
-            oscillator.type = 'sine'; // 부드러운 삐익 소리
-            oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime); // 고음 1000Hz
-            
-            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+            // 사각파(Square)를 사용하여 찢어지는 듯한 강한 소리 생성
+            osc.type = 'square';
+            // 1500Hz의 아주 높은 고음
+            osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
+            // 소리가 약간 길게 "삐이이익" 하도록 설정
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
 
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
         }
 
         function handleTap() {
             if (count < maxCount) {
                 count++;
                 countEl.innerText = count;
-                statusEl.innerText = "점프 중...";
-                playBeep();
+                
+                // 1. 소리 재생
+                playAggressiveBeep();
 
-                // 숫자 커지는 효과
-                countEl.style.transform = "scale(1.2)";
-                setTimeout(() => { countEl.style.transform = "scale(1)"; }, 100);
+                // 2. 진동 (워치 하드웨어 지원 시)
+                if (navigator.vibrate) {
+                    navigator.vibrate(100); 
+                }
 
+                // 3. 시각 효과
+                countEl.style.transform = "scale(1.4)";
+                setTimeout(() => { countEl.style.transform = "scale(1)"; }, 50);
+                
+                statusEl.innerText = "KEEP GOING!";
+                statusEl.style.color = "#00FF41";
+
+                // 목표 달성 체크
                 if (count === maxCount) {
                     document.body.classList.add('finished');
-                    statusEl.innerText = "목표 달성! 대단해요!";
-                    statusEl.style.color = "#ffcc00";
+                    statusEl.innerText = "MISSION COMPLETE!";
+                    statusEl.style.color = "#fff";
+                    // 목표 달성 시엔 더 긴 진동
+                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
                 }
             }
         }
 
         function resetCount(event) {
-            event.stopPropagation(); // 배경 클릭 이벤트 방지
+            event.stopPropagation();
             count = 0;
             countEl.innerText = count;
-            statusEl.innerText = "터치해서 시작!";
-            statusEl.style.color = "#888";
+            statusEl.innerText = "READY?";
+            statusEl.style.color = "#aaa";
             document.body.classList.remove('finished');
+            if (navigator.vibrate) navigator.vibrate(50);
         }
     </script>
 </body>
